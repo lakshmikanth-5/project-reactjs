@@ -7,6 +7,14 @@ pipeline {
         timestamps()
     }
 
+    environment {
+        DOCKERHUB_REPO = 'laxmikanth5/reactjs-springboot'
+
+        AWS_REGION = 'us-east-1'
+        ECR_REGISTRY = '658424926696.dkr.ecr.us-east-1.amazonaws.com'
+        ECR_REPO = 'devops25/frontend-reactjs'
+    }
+
     stages {
 
         stage('Docker Image Build') {
@@ -19,7 +27,7 @@ pipeline {
             }
         }
 
-        stage('Docker Login') {
+        stage('DockerHub Login') {
             steps {
                 withCredentials([usernamePassword(
                     credentialsId: 'docker_cred_token',
@@ -29,44 +37,60 @@ pipeline {
                     sh '''
                         set +x
                         echo "$DOCKER_PASS" | docker login \
-                            -u "$DOCKER_USER" --password-stdin
+                            -u "$DOCKER_USER" \
+                            --password-stdin
                     '''
                 }
             }
         }
 
-        stage('Docker Tagging') {
+        stage('DockerHub Tagging') {
             steps {
                 sh '''
                     docker tag \
                         reactjs-node:v${BUILD_NUMBER} \
-                        laxmikanth5/reactjs-springboot:reactjs-v${BUILD_NUMBER}
+                        ${DOCKERHUB_REPO}:reactjs-v${BUILD_NUMBER}
                 '''
             }
         }
 
-        stage('Image Push to DockerHub') {
+        stage('Push Image to DockerHub') {
             steps {
                 sh '''
                     docker push \
-                        laxmikanth5/reactjs-springboot:reactjs-v${BUILD_NUMBER}
+                        ${DOCKERHUB_REPO}:reactjs-v${BUILD_NUMBER}
                 '''
             }
         }
 
-        /*
-        stage('Push to ECR') {
+        stage('Push Image to ECR') {
             steps {
                 sh '''
-                    aws ecr get-login-password --region us-west-2 | docker login --username AWS --password-stdin 897276212041.dkr.ecr.us-west-2.amazonaws.com
+                    set -e
 
-                    docker tag java-spring:v${BUILD_NUMBER} 897276212041.dkr.ecr.us-west-2.amazonaws.com/devops19-java:v${BUILD_NUMBER}
+                    echo "Logging into AWS ECR..."
 
-                    docker push 897276212041.dkr.ecr.us-west-2.amazonaws.com/devops19-java:v${BUILD_NUMBER}
+                    aws ecr get-login-password \
+                        --region ${AWS_REGION} |
+                    docker login \
+                        --username AWS \
+                        --password-stdin ${ECR_REGISTRY}
+
+                    echo "Tagging image for ECR..."
+
+                    docker tag \
+                        reactjs-node:v${BUILD_NUMBER} \
+                        ${ECR_REGISTRY}/${ECR_REPO}:reactjs-v${BUILD_NUMBER}
+
+                    echo "Pushing image to ECR..."
+
+                    docker push \
+                        ${ECR_REGISTRY}/${ECR_REPO}:reactjs-v${BUILD_NUMBER}
+
+                    echo "ECR push completed successfully."
                 '''
             }
         }
-        */
     }
 
     post {
