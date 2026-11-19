@@ -17,33 +17,32 @@ pipeline {
 
     stages {
 
-
         stage('SonarQube Analysis') {
             steps {
-                withSonarQubeEnv('SonarQube') {
-                    sh '''
-                        sonar-scanner \
-                           -Dsonar.projectKey=reactjs-frontend \
-                           -Dsonar.projectName=reactjs-frontend \
-                           -Dsonar.sources=src \
-                           -Dsonar.sourceEncoding=UTF-8 \
-                           -Dsonar.exclusions=**/node_modules/**,**/dist/**
-                    '''   
-                }         
+                script {
+                    def scannerHome = tool 'SonarScanner'
 
-            }              
-        }
-
-
-        stage('SonarQube Quality Gate') {
-            steps {
-
-                timeout(time: 5, unit: 'MINUTES') {
-                   waitForQualityGate abortPipeline: true
+                    withSonarQubeEnv('SonarQube') {
+                        sh """
+                            ${scannerHome}/bin/sonar-scanner \
+                                -Dsonar.projectKey=reactjs-frontend \
+                                -Dsonar.projectName=reactjs-frontend \
+                                -Dsonar.sources=src \
+                                -Dsonar.sourceEncoding=UTF-8 \
+                                -Dsonar.exclusions=**/node_modules/**,**/dist/**
+                        """
+                    }
                 }
             }
         }
-    
+
+        stage('SonarQube Quality Gate') {
+            steps {
+                timeout(time: 5, unit: 'MINUTES') {
+                    waitForQualityGate abortPipeline: true
+                }
+            }
+        }
 
         stage('Docker Image Build') {
             steps {
